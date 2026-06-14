@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  shioaji-server:
+    image: python:3.11-slim
+    container_name: shioaji-server
+    ports:
+      - "8080:8080"
+    environment:
+      - SJ_API_KEY=${SJ_API_KEY}
+      - SJ_SEC_KEY=${SJ_SEC_KEY}
+      - SJ_PRODUCTION=${SJ_PRODUCTION:-false}
+      - SJ_CA_PATH=${SJ_CA_PATH:-}
+      - SJ_CA_PASSWD=${SJ_CA_PASSWD:-}
+    # Create the .env in container or pass env variables directly. 
+    # shioaji server start reads environment variables from the OS or a .env file.
+    command: >
+      sh -c "
+      pip install shioaji &&
+      shioaji server start --port 8080 &&
+      echo 'Shioaji server started.' &&
+      tail -f /dev/null
+      "
+    restart: always
+
+  stock-skill-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: stock-skill-api
+    ports:
+      - "8081:8081"
+    environment:
+      - SHIOAJI_SERVER_URL=http://shioaji-server:8080
+    depends_on:
+      - shioaji-server
+    restart: always

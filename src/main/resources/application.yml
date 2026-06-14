@@ -1,0 +1,5 @@
+server:
+  port: 8081
+
+shioaji:
+  server-url: http://shioaji-server:8080
