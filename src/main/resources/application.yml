@@ -2,4 +2,9 @@ server:
   port: 8081
 
 shioaji:
-  server-url: http://shioaji-server:8080
+  server-url: ${SHIOAJI_SERVER_URL:http://shioaji-server:8080}
+
+logging:
+  level:
+    root: INFO
+    com.example.stockskill: DEBUG

@@ -6,6 +6,7 @@ services:
     container_name: shioaji-server
     ports:
       - "8080:8080"
+      - "8082:8082"
     environment:
       - SJ_API_KEY=${SJ_API_KEY}
       - SJ_SEC_KEY=${SJ_SEC_KEY}
@@ -14,12 +15,36 @@ services:
       - SJ_CA_PASSWD=${SJ_CA_PASSWD:-}
     # Create the .env in container or pass env variables directly. 
     # shioaji server start reads environment variables from the OS or a .env file.
-    command: >
+    command: |
       sh -c "
-      pip install shioaji &&
-      shioaji server start --port 8080 &&
-      echo 'Shioaji server started.' &&
-      tail -f /dev/null
+      pip install shioaji
+      python -c \"
+      import socket, threading
+      def f(s, d):
+          try:
+              while True:
+                  data = s.recv(4096)
+                  if not data: break
+                  d.sendall(data)
+          except: pass
+          finally: s.close(); d.close()
+      def h(c):
+          try:
+              s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+              s.connect(('127.0.0.1', 8080))
+              threading.Thread(target=f, args=(c, s)).start()
+              threading.Thread(target=f, args=(s, c)).start()
+          except: c.close()
+      s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+      s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+      s.bind(('0.0.0.0', 8082))
+      s.listen(100)
+      print('Proxy listening on 0.0.0.0:8082 -> 127.0.0.1:8080')
+      while True:
+          c, a = s.accept()
+          threading.Thread(target=h, args=(c,)).start()
+      \" &
+      shioaji server start
       "
     restart: always
 
@@ -31,7 +56,7 @@ services:
     ports:
       - "8081:8081"
     environment:
-      - SHIOAJI_SERVER_URL=http://shioaji-server:8080
+      - SHIOAJI_SERVER_URL=http://shioaji-server:8082
     depends_on:
       - shioaji-server
     restart: always
